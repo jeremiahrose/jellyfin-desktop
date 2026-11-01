@@ -26,7 +26,6 @@ public:
   void countAirPlayStreamStarted(int sampleRateHz);
   void countAirPlayStreamEnded();
   void announceAirPlayTrackMetadata(const QByteArray& dmapTaggedTrackMetadata);
-  void announceAirPlayCoverArt(const QByteArray& coverArtImage);
   void announceAirPlayProgress(unsigned int trackStartRtpTimestamp,
                                unsigned int currentRtpTimestamp, unsigned int trackEndRtpTimestamp);
   void announceAirPlayAudioDiscarded();
@@ -34,13 +33,12 @@ public:
 Q_SIGNALS:
   void airPlayStreamStarted();
   void airPlayTrackChanged(const QString& title, const QString& artist, const QString& album);
-  void airPlayCoverArtChanged(const QString& coverArtDataUrl);
   void airPlayProgressChanged(double positionSeconds, double durationSeconds);
   void airPlayAudioDiscarded();
   void airPlayStreamEnded();
 
-private Q_SLOTS:
-  void disconnectAirPlaySendersForJellyfinPlayback();
+public Q_SLOTS:
+  void disconnectAirPlaySenders();
 
 private:
   static QByteArray readAirportExpressPrivateKeyPem();

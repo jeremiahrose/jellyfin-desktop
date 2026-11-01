@@ -3,12 +3,10 @@
 #include <QDebug>
 #include <QFile>
 #include <QHostInfo>
-#include <QMimeDatabase>
 #include <QNetworkInterface>
 
 #include "AirPlayAudioOutput.h"
 #include "AirPlayTrackMetadata.h"
-#include "input/InputComponent.h"
 #include "player/PlayerComponent.h"
 #include "utils/Utils.h"
 
@@ -23,10 +21,7 @@ static void* openAudioOutputForNewAirPlayStream(void* receiverComponent, int bit
     return nullptr;
   }
 
-  qInfo() << "AirPlay stream started, stopping current playback";
-  QMetaObject::invokeMethod(
-  &InputComponent::Get(), [] { InputComponent::Get().sendAction("stop"); }, Qt::QueuedConnection);
-
+  qInfo() << "AirPlay stream started";
   try
   {
     auto* airPlayAudioOutput = new AirPlayAudioOutput(channelCount, sampleRateHz);
@@ -71,14 +66,6 @@ static void receiveAirPlayTrackMetadata(void* receiverComponent, void* airPlayAu
   static_cast<AirPlayReceiverComponent*>(receiverComponent)
   ->announceAirPlayTrackMetadata(QByteArray(static_cast<const char*>(dmapTaggedTrackMetadata),
                                             dmapTaggedTrackMetadataLengthBytes));
-}
-
-static void receiveAirPlayCoverArt(void* receiverComponent, void* airPlayAudioOutput,
-                                   const void* coverArtImage, int coverArtImageLengthBytes)
-{
-  static_cast<AirPlayReceiverComponent*>(receiverComponent)
-  ->announceAirPlayCoverArt(
-  QByteArray(static_cast<const char*>(coverArtImage), coverArtImageLengthBytes));
 }
 
 static void receiveAirPlayProgress(void* receiverComponent, void* airPlayAudioOutput,
@@ -132,7 +119,7 @@ bool AirPlayReceiverComponent::componentInitialize()
 void AirPlayReceiverComponent::componentPostInitialize()
 {
   connect(&PlayerComponent::Get(), &PlayerComponent::playing, this,
-          &AirPlayReceiverComponent::disconnectAirPlaySendersForJellyfinPlayback);
+          &AirPlayReceiverComponent::disconnectAirPlaySenders);
 }
 
 void AirPlayReceiverComponent::countAirPlayStreamStarted(int sampleRateHz)
@@ -160,19 +147,6 @@ const QByteArray& dmapTaggedTrackMetadata)
   Qt::QueuedConnection);
 }
 
-void AirPlayReceiverComponent::announceAirPlayCoverArt(const QByteArray& coverArtImage)
-{
-  QString coverArtDataUrl;
-  if (!coverArtImage.isEmpty())
-  {
-    QString coverArtMimeType = QMimeDatabase().mimeTypeForData(coverArtImage).name();
-    coverArtDataUrl = "data:" + coverArtMimeType + ";base64," + coverArtImage.toBase64();
-  }
-  QMetaObject::invokeMethod(
-  this, [this, coverArtDataUrl] { emit airPlayCoverArtChanged(coverArtDataUrl); },
-  Qt::QueuedConnection);
-}
-
 void AirPlayReceiverComponent::announceAirPlayProgress(unsigned int trackStartRtpTimestamp,
                                                        unsigned int currentRtpTimestamp,
                                                        unsigned int trackEndRtpTimestamp)
@@ -190,12 +164,12 @@ void AirPlayReceiverComponent::announceAirPlayAudioDiscarded()
   QMetaObject::invokeMethod(this, [this] { emit airPlayAudioDiscarded(); }, Qt::QueuedConnection);
 }
 
-void AirPlayReceiverComponent::disconnectAirPlaySendersForJellyfinPlayback()
+void AirPlayReceiverComponent::disconnectAirPlaySenders()
 {
   if (m_activeAirPlayStreamCount == 0)
     return;
 
-  qInfo() << "Jellyfin playback started, disconnecting AirPlay senders";
+  qInfo() << "Disconnecting AirPlay senders";
   raop_stop(m_airPlayAudioServer);
   try
   {
@@ -216,7 +190,6 @@ void AirPlayReceiverComponent::createAirPlayAudioServer()
   m_airPlayAudioServerCallbacks.audio_set_volume = setAirPlayVolume;
   m_airPlayAudioServerCallbacks.audio_destroy = closeAudioOutputForEndedAirPlayStream;
   m_airPlayAudioServerCallbacks.audio_set_metadata = receiveAirPlayTrackMetadata;
-  m_airPlayAudioServerCallbacks.audio_set_coverart = receiveAirPlayCoverArt;
   m_airPlayAudioServerCallbacks.audio_set_progress = receiveAirPlayProgress;
 
   QByteArray airportExpressPrivateKeyPem = readAirportExpressPrivateKeyPem();
