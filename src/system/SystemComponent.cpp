@@ -601,10 +601,6 @@ QString SystemComponent::getNativeShellScript()
     ":/web-client/extension/connectivityHelper.js",
     ":/web-client/extension/nativeshell.js"
   };
-#ifdef HAVE_AIRPLAY
-  scriptPaths.insert(scriptPaths.indexOf(":/web-client/extension/nativeshell.js"),
-                     ":/web-client/extension/airPlayPlayer.js");
-#endif
 
   cachedScript = jmpInfoDeclaration;
   for (const QString& scriptPath : scriptPaths) {

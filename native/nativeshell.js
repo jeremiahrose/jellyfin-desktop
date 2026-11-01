@@ -22,10 +22,6 @@ const getPlugins = () => {
         'updatePlugin'
     ];
 
-    if (window._airPlayPlayer) {
-        basePlugins.push('airPlayPlayer');
-    }
-
     const mpvEnabled = jmpInfo.settings?.main?.enableMPV !== false;
     if (mpvEnabled) {
         return [

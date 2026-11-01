@@ -1,4 +1,3 @@
 add_sources(AirPlayReceiverComponent.cpp AirPlayReceiverComponent.h)
 add_sources(AirPlayNetworkAnnouncement.cpp AirPlayNetworkAnnouncement.h)
 add_sources(AirPlayAudioOutput.cpp AirPlayAudioOutput.h)
-add_sources(AirPlayTrackMetadata.cpp AirPlayTrackMetadata.h)

@@ -19,26 +19,15 @@ public:
   ~AirPlayReceiverComponent() override;
 
   const char* componentName() override { return "airplay"; }
-  bool componentExport() override { return true; }
+  bool componentExport() override { return false; }
   bool componentInitialize() override;
   void componentPostInitialize() override;
 
-  void countAirPlayStreamStarted(int sampleRateHz);
-  void countAirPlayStreamEnded();
-  void announceAirPlayTrackMetadata(const QByteArray& dmapTaggedTrackMetadata);
-  void announceAirPlayProgress(unsigned int trackStartRtpTimestamp,
-                               unsigned int currentRtpTimestamp, unsigned int trackEndRtpTimestamp);
-  void announceAirPlayAudioDiscarded();
+  void countAirPlayStreamStarted() { m_activeAirPlayStreamCount++; }
+  void countAirPlayStreamEnded() { m_activeAirPlayStreamCount--; }
 
-Q_SIGNALS:
-  void airPlayStreamStarted();
-  void airPlayTrackChanged(const QString& title, const QString& artist, const QString& album);
-  void airPlayProgressChanged(double positionSeconds, double durationSeconds);
-  void airPlayAudioDiscarded();
-  void airPlayStreamEnded();
-
-public Q_SLOTS:
-  void disconnectAirPlaySenders();
+private Q_SLOTS:
+  void disconnectAirPlaySendersForJellyfinPlayback();
 
 private:
   static QByteArray readAirportExpressPrivateKeyPem();
@@ -48,7 +37,6 @@ private:
 
   QByteArray m_receiverHardwareAddress;
   std::atomic<int> m_activeAirPlayStreamCount = 0;
-  std::atomic<int> m_airPlaySampleRateHz = 44100;
   raop_callbacks_t m_airPlayAudioServerCallbacks = {};
   raop_t* m_airPlayAudioServer = nullptr;
   unsigned short m_airPlayAudioPort = 5000;
