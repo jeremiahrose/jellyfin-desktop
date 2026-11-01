@@ -6,6 +6,7 @@
 #include <QNetworkInterface>
 
 #include "AirPlayAudioOutput.h"
+#include "input/InputComponent.h"
 #include "player/PlayerComponent.h"
 #include "utils/Utils.h"
 
@@ -21,7 +22,8 @@ static void* openAudioOutputForNewAirPlayStream(void* receiverComponent, int bit
   }
 
   qInfo() << "AirPlay stream started, stopping current playback";
-  QMetaObject::invokeMethod(&PlayerComponent::Get(), &PlayerComponent::stop, Qt::QueuedConnection);
+  QMetaObject::invokeMethod(
+  &InputComponent::Get(), [] { InputComponent::Get().sendAction("stop"); }, Qt::QueuedConnection);
 
   try
   {
