@@ -16,6 +16,9 @@
 #ifdef LINUX_DBUS
 #include "mpris/MprisComponent.h"
 #endif
+#ifdef HAVE_AIRPLAY
+#include "airplay/AirPlayReceiverComponent.h"
+#endif
 
 #ifdef KONVERGO_OPENELEC
 #include "system/openelec/OESystemComponent.h"
@@ -65,6 +68,9 @@ void ComponentManager::initialize()
   registerComponent(&WindowManager::Get());
 #ifdef LINUX_DBUS
   registerComponent(&MprisComponent::Get());
+#endif
+#ifdef HAVE_AIRPLAY
+  registerComponent(&AirPlayReceiverComponent::Get());
 #endif
 
 #ifdef KONVERGO_OPENELEC

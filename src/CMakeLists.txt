@@ -26,6 +26,10 @@ if(LINUX_DBUS)
   add_subdirectory(mpris)
 endif()
 
+if(ENABLE_AIRPLAY)
+  add_subdirectory(airplay)
+endif()
+
 get_property(ALL_SRCS GLOBAL PROPERTY SRCS_LIST)
 set(MAIN_SRCS main.cpp)
 

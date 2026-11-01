@@ -36,7 +36,9 @@ Build-Depends: debhelper (>= 10),
                libmpv-dev,
                wget,
                unzip,
-               qt6-base-private-dev
+               qt6-base-private-dev,
+               libshairplay-dev,
+               libavahi-client-dev
 Standards-Version: 3.9.4
 Homepage: https://jellyfin.org/
 Vcs-Git: https://github.org/jellyfin/jellyfin-desktop.git
