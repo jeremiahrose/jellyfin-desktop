@@ -1,7 +1,6 @@
 name: build-raspberry-pi
 
 on:
-  pull_request:
   push:
     branches:
       - master
