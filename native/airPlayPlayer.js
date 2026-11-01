@@ -2,9 +2,10 @@
 const TICKS_PER_MILLISECOND = 10000;
 
 class airPlayPlayer {
-    constructor({ events, playbackManager }) {
+    constructor({ events, playbackManager, ServerConnections }) {
         this.events = events;
         this.playbackManager = playbackManager;
+        this.serverConnections = ServerConnections;
 
         this.name = 'AirPlay';
         this.type = 'mediaplayer';
@@ -41,7 +42,7 @@ class airPlayPlayer {
         this._positionMsAtLastProgressUpdate = 0;
         this._lastProgressUpdateTimeMs = Date.now();
         this._nowPlayingItem = {
-            Id: 'airplay',
+            ServerId: this.serverConnections.currentApiClient().serverId(),
             PlaylistItemId: 'airplay',
             Name: 'AirPlay',
             Artists: [],
