@@ -3,6 +3,7 @@
 #include "InputCEC.h"
 #include "settings/SettingsComponent.h"
 #include "power/PowerComponent.h"
+#include "utils/Utils.h"
 
 struct KeyAction
 {
@@ -91,7 +92,20 @@ bool InputCECWorker::init()
   m_callbacks.alert = &CecAlert;
   m_configuration.callbackParam = this;
   m_configuration.callbacks = &m_callbacks;
+#ifdef HAVE_CEC_AUDIO_SYSTEM
+  try
+  {
+    m_defaultAudioOutputVolume = std::make_unique<DefaultAudioOutputVolume>();
+  }
+  catch (FatalException& volumeControlError)
+  {
+    qCritical() << volumeControlError.message();
+    return false;
+  }
+  m_configuration.deviceTypes.Add(CEC_DEVICE_TYPE_AUDIO_SYSTEM);
+#else
   m_configuration.deviceTypes.Add(CEC_DEVICE_TYPE_RECORDING_DEVICE);
+#endif
   m_configuration.bAutodetectAddress =  CEC_DEFAULT_SETTING_AUTODETECT_ADDRESS;
   m_configuration.iPhysicalAddress = CEC_PHYSICAL_ADDRESS_TV;
   m_configuration.baseDevice = CECDEVICE_AUDIOSYSTEM;
@@ -324,6 +338,18 @@ void InputCECWorker::CecCommand(void *cbParam, const cec_command *command)
         qDebug() << "CecCommand button (Down= " << down << ")" << cec->getCommandParamsList(command);
       }
 
+#ifdef HAVE_CEC_AUDIO_SYSTEM
+      if (command->parameters.size && isVolumeKey(command->parameters[0]))
+      {
+        if (down)
+        {
+          cec->changeDefaultAudioOutputVolumeForKey(command->parameters[0]);
+          cec->reportAudioStatusToDevice(command->initiator);
+        }
+        return;
+      }
+#endif
+
       if (command->parameters.size && down)
       {
         switch(command->parameters[0])
@@ -355,6 +381,12 @@ void InputCECWorker::CecCommand(void *cbParam, const cec_command *command)
     }
       break;
 
+#ifdef HAVE_CEC_AUDIO_SYSTEM
+    case CEC_OPCODE_GIVE_AUDIO_STATUS:
+      cec->reportAudioStatusToDevice(command->initiator);
+      break;
+#endif
+
     case CEC_OPCODE_GIVE_OSD_NAME:          // ignore those known commands (only pollng from TV)
     case CEC_OPCODE_GIVE_PHYSICAL_ADDRESS:
       break;
@@ -378,6 +410,54 @@ void InputCECWorker::CecCommand(void *cbParam, const cec_command *command)
 
   return;
 }
+
+#ifdef HAVE_CEC_AUDIO_SYSTEM
+///////////////////////////////////////////////////////////////////////////////////////////////////
+bool InputCECWorker::isVolumeKey(uint8_t userControlCode)
+{
+  return userControlCode == CEC_USER_CONTROL_CODE_VOLUME_UP ||
+         userControlCode == CEC_USER_CONTROL_CODE_VOLUME_DOWN ||
+         userControlCode == CEC_USER_CONTROL_CODE_MUTE;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+void InputCECWorker::changeDefaultAudioOutputVolumeForKey(uint8_t volumeKeyUserControlCode)
+{
+  try
+  {
+    if (volumeKeyUserControlCode == CEC_USER_CONTROL_CODE_VOLUME_UP)
+      m_defaultAudioOutputVolume->raiseVolumeByOneStep();
+    else if (volumeKeyUserControlCode == CEC_USER_CONTROL_CODE_VOLUME_DOWN)
+      m_defaultAudioOutputVolume->lowerVolumeByOneStep();
+    else if (volumeKeyUserControlCode == CEC_USER_CONTROL_CODE_MUTE)
+      m_defaultAudioOutputVolume->toggleMute();
+  }
+  catch (FatalException& volumeControlError)
+  {
+    qCritical() << volumeControlError.message();
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+void InputCECWorker::reportAudioStatusToDevice(cec_logical_address requestingDeviceAddress)
+{
+  try
+  {
+    uint8_t volumePercent = static_cast<uint8_t>(m_defaultAudioOutputVolume->volumePercent());
+    uint8_t muteFlag = m_defaultAudioOutputVolume->isMuted() ? CEC_AUDIO_MUTE_STATUS_MASK : 0;
+
+    cec_command audioStatusReport;
+    cec_command::Format(audioStatusReport, CECDEVICE_AUDIOSYSTEM, requestingDeviceAddress,
+                        CEC_OPCODE_REPORT_AUDIO_STATUS);
+    audioStatusReport.parameters.PushBack(muteFlag | (volumePercent & CEC_AUDIO_VOLUME_STATUS_MASK));
+    m_adapter->Transmit(audioStatusReport);
+  }
+  catch (FatalException& volumeControlError)
+  {
+    qCritical() << volumeControlError.message();
+  }
+}
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void InputCECWorker::CecAlert(void *cbParam, const libcec_alert type, const libcec_parameter param)

@@ -5,6 +5,11 @@
 #include <QTimer>
 #include "input/InputComponent.h"
 #include <libcec/cec.h>
+#include <memory>
+
+#ifdef HAVE_CEC_AUDIO_SYSTEM
+#include "input/DefaultAudioOutputVolume.h"
+#endif
 
 using namespace CEC;
 
@@ -54,6 +59,12 @@ private:
   void sendReceivedInput(const QString& source, const QString& keycode, InputBase::InputkeyState keyState);
   QString getCommandParamsList(const cec_command *command);
 
+#ifdef HAVE_CEC_AUDIO_SYSTEM
+  static bool isVolumeKey(uint8_t userControlCode);
+  void changeDefaultAudioOutputVolumeForKey(uint8_t volumeKeyUserControlCode);
+  void reportAudioStatusToDevice(cec_logical_address requestingDeviceAddress);
+#endif
+
   // libcec callbacks
   static void CecLogMessage(void* cbParam, const cec_log_message *message);
   static void CecCommand(void* cbParam, const cec_command *command);
@@ -65,6 +76,10 @@ private:
   QString m_adapterPort;
   QTimer* m_timer;
   bool m_verboseLogging;
+
+#ifdef HAVE_CEC_AUDIO_SYSTEM
+  std::unique_ptr<DefaultAudioOutputVolume> m_defaultAudioOutputVolume;
+#endif
 };
 
 #endif // INPUTCEC_H
