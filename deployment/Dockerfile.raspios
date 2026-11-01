@@ -1,0 +1,32 @@
+FROM debian:bookworm
+
+ARG SOURCE_DIR=/jellyfin
+ARG ARTIFACT_DIR=/dist
+
+ENV SOURCE_DIR=/jellyfin
+ENV ARTIFACT_DIR=/dist
+ENV DEB_BUILD_OPTIONS=noddebs
+ENV IS_DOCKER=YES
+ENV IMG=raspios
+
+# Add the Raspberry Pi OS archive so libcec and FFmpeg resolve to the Raspberry Pi builds
+RUN apt-get update \
+ && apt-get install --no-install-recommends -y ca-certificates curl gnupg \
+ && curl -fsSL https://archive.raspberrypi.com/debian/raspberrypi.gpg.key \
+    | gpg --dearmor -o /usr/share/keyrings/raspberrypi-archive-keyring.gpg \
+ && echo "deb [signed-by=/usr/share/keyrings/raspberrypi-archive-keyring.gpg] http://archive.raspberrypi.com/debian bookworm main" \
+    > /etc/apt/sources.list.d/raspi.list \
+ && apt-get update \
+ && apt-get dist-upgrade -y
+
+RUN DEBIAN_FRONTEND="noninteractive" TZ="America/New_York" \
+    apt-get install --no-install-recommends -y \
+    debhelper mmv git curl devscripts equivs
+
+RUN ln -sf ${SOURCE_DIR}/deployment/build.debian /build.sh
+
+VOLUME ${SOURCE_DIR}
+
+VOLUME ${ARTIFACT_DIR}
+
+ENTRYPOINT ["/build.sh"]
