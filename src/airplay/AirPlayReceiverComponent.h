@@ -2,6 +2,7 @@
 #define AIRPLAYRECEIVERCOMPONENT_H
 
 #include <QByteArray>
+#include <atomic>
 #include <memory>
 #include <shairplay/raop.h>
 
@@ -20,12 +21,22 @@ public:
   const char* componentName() override { return "airplay"; }
   bool componentExport() override { return false; }
   bool componentInitialize() override;
+  void componentPostInitialize() override;
+
+  void countAirPlayStreamStarted() { m_activeAirPlayStreamCount++; }
+  void countAirPlayStreamEnded() { m_activeAirPlayStreamCount--; }
+
+private Q_SLOTS:
+  void disconnectAirPlaySendersForJellyfinPlayback();
 
 private:
   static QByteArray readAirportExpressPrivateKeyPem();
   static QByteArray firstNetworkInterfaceHardwareAddress();
-  void startAirPlayAudioServer(const QByteArray& receiverHardwareAddress);
+  void createAirPlayAudioServer();
+  void startListeningForAirPlaySenders();
 
+  QByteArray m_receiverHardwareAddress;
+  std::atomic<int> m_activeAirPlayStreamCount = 0;
   raop_callbacks_t m_airPlayAudioServerCallbacks = {};
   raop_t* m_airPlayAudioServer = nullptr;
   unsigned short m_airPlayAudioPort = 5000;

@@ -25,7 +25,9 @@ static void* openAudioOutputForNewAirPlayStream(void* receiverComponent, int bit
 
   try
   {
-    return new AirPlayAudioOutput(channelCount, sampleRateHz);
+    auto* airPlayAudioOutput = new AirPlayAudioOutput(channelCount, sampleRateHz);
+    static_cast<AirPlayReceiverComponent*>(receiverComponent)->countAirPlayStreamStarted();
+    return airPlayAudioOutput;
   }
   catch (FatalException& audioOutputError)
   {
@@ -59,6 +61,8 @@ static void setAirPlayVolume(void* receiverComponent, void* airPlayAudioOutput,
 static void closeAudioOutputForEndedAirPlayStream(void* receiverComponent, void* airPlayAudioOutput)
 {
   qInfo() << "AirPlay stream ended";
+  if (airPlayAudioOutput)
+    static_cast<AirPlayReceiverComponent*>(receiverComponent)->countAirPlayStreamEnded();
   delete static_cast<AirPlayAudioOutput*>(airPlayAudioOutput);
 }
 
@@ -76,12 +80,13 @@ bool AirPlayReceiverComponent::componentInitialize()
 {
   try
   {
-    QByteArray receiverHardwareAddress = firstNetworkInterfaceHardwareAddress();
-    startAirPlayAudioServer(receiverHardwareAddress);
+    m_receiverHardwareAddress = firstNetworkInterfaceHardwareAddress();
+    createAirPlayAudioServer();
+    startListeningForAirPlaySenders();
 
     QString receiverName = QString("Jellyfin (%1)").arg(QHostInfo::localHostName());
     m_networkAnnouncement = std::make_unique<AirPlayNetworkAnnouncement>(
-    receiverName, receiverHardwareAddress, m_airPlayAudioPort);
+    receiverName, m_receiverHardwareAddress, m_airPlayAudioPort);
   }
   catch (FatalException& airPlayStartupError)
   {
@@ -92,7 +97,30 @@ bool AirPlayReceiverComponent::componentInitialize()
   return true;
 }
 
-void AirPlayReceiverComponent::startAirPlayAudioServer(const QByteArray& receiverHardwareAddress)
+void AirPlayReceiverComponent::componentPostInitialize()
+{
+  connect(&PlayerComponent::Get(), &PlayerComponent::playing, this,
+          &AirPlayReceiverComponent::disconnectAirPlaySendersForJellyfinPlayback);
+}
+
+void AirPlayReceiverComponent::disconnectAirPlaySendersForJellyfinPlayback()
+{
+  if (m_activeAirPlayStreamCount == 0)
+    return;
+
+  qInfo() << "Jellyfin playback started, disconnecting AirPlay senders";
+  raop_stop(m_airPlayAudioServer);
+  try
+  {
+    startListeningForAirPlaySenders();
+  }
+  catch (FatalException& airPlayRestartError)
+  {
+    qCritical() << airPlayRestartError.message();
+  }
+}
+
+void AirPlayReceiverComponent::createAirPlayAudioServer()
 {
   m_airPlayAudioServerCallbacks.cls = this;
   m_airPlayAudioServerCallbacks.audio_init = openAudioOutputForNewAirPlayStream;
@@ -109,10 +137,13 @@ void AirPlayReceiverComponent::startAirPlayAudioServer(const QByteArray& receive
   if (!m_airPlayAudioServer)
     throw FatalException(
     QString("Could not create the AirPlay audio server, error %1").arg(airPlayServerErrorCode));
+}
 
+void AirPlayReceiverComponent::startListeningForAirPlaySenders()
+{
   int startResult =
-  raop_start(m_airPlayAudioServer, &m_airPlayAudioPort, receiverHardwareAddress.constData(),
-             receiverHardwareAddress.size(), nullptr);
+  raop_start(m_airPlayAudioServer, &m_airPlayAudioPort, m_receiverHardwareAddress.constData(),
+             m_receiverHardwareAddress.size(), nullptr);
   if (startResult < 0)
     throw FatalException(
     QString("Could not listen for AirPlay audio on port %1").arg(m_airPlayAudioPort));
