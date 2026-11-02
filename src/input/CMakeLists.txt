@@ -24,9 +24,5 @@ if(CEC_FOUND)
   list(APPEND INPUT_SRCS InputCEC.cpp InputCEC.h)
 endif(CEC_FOUND)
 
-if(ENABLE_CEC_AUDIO_SYSTEM)
-  list(APPEND INPUT_SRCS DefaultAudioOutputVolume.cpp DefaultAudioOutputVolume.h)
-endif(ENABLE_CEC_AUDIO_SYSTEM)
-
 add_sources(${INPUT_SRCS})
 

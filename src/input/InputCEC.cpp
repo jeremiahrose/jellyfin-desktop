@@ -93,13 +93,9 @@ bool InputCECWorker::init()
   m_configuration.callbackParam = this;
   m_configuration.callbacks = &m_callbacks;
 #ifdef HAVE_CEC_AUDIO_SYSTEM
-  try
+  if (!DefaultAudioOutputVolumeComponent::Get().controlsDefaultAudioOutput())
   {
-    m_defaultAudioOutputVolume = std::make_unique<DefaultAudioOutputVolume>();
-  }
-  catch (FatalException& volumeControlError)
-  {
-    qCritical() << volumeControlError.message();
+    qCritical() << "CEC audio system needs control of the default audio output volume";
     return false;
   }
   m_configuration.deviceTypes.Add(CEC_DEVICE_TYPE_AUDIO_SYSTEM);
@@ -423,19 +419,14 @@ bool InputCECWorker::isVolumeKey(uint8_t userControlCode)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void InputCECWorker::changeDefaultAudioOutputVolumeForKey(uint8_t volumeKeyUserControlCode)
 {
-  try
-  {
-    if (volumeKeyUserControlCode == CEC_USER_CONTROL_CODE_VOLUME_UP)
-      m_defaultAudioOutputVolume->raiseVolumeByOneStep();
-    else if (volumeKeyUserControlCode == CEC_USER_CONTROL_CODE_VOLUME_DOWN)
-      m_defaultAudioOutputVolume->lowerVolumeByOneStep();
-    else if (volumeKeyUserControlCode == CEC_USER_CONTROL_CODE_MUTE)
-      m_defaultAudioOutputVolume->toggleMute();
-  }
-  catch (FatalException& volumeControlError)
-  {
-    qCritical() << volumeControlError.message();
-  }
+  DefaultAudioOutputVolumeComponent& defaultAudioOutputVolume =
+  DefaultAudioOutputVolumeComponent::Get();
+  if (volumeKeyUserControlCode == CEC_USER_CONTROL_CODE_VOLUME_UP)
+    defaultAudioOutputVolume.raiseVolumeByOneStep();
+  else if (volumeKeyUserControlCode == CEC_USER_CONTROL_CODE_VOLUME_DOWN)
+    defaultAudioOutputVolume.lowerVolumeByOneStep();
+  else if (volumeKeyUserControlCode == CEC_USER_CONTROL_CODE_MUTE)
+    defaultAudioOutputVolume.toggleMute();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -443,8 +434,12 @@ void InputCECWorker::reportAudioStatusToDevice(cec_logical_address requestingDev
 {
   try
   {
-    uint8_t volumePercent = static_cast<uint8_t>(m_defaultAudioOutputVolume->volumePercent());
-    uint8_t muteFlag = m_defaultAudioOutputVolume->isMuted() ? CEC_AUDIO_MUTE_STATUS_MASK : 0;
+    DefaultAudioOutputVolumeComponent& defaultAudioOutputVolume =
+    DefaultAudioOutputVolumeComponent::Get();
+    uint8_t volumePercent =
+    static_cast<uint8_t>(defaultAudioOutputVolume.currentVolumePercentOfDefaultAudioOutput());
+    uint8_t muteFlag =
+    defaultAudioOutputVolume.defaultAudioOutputIsMuted() ? CEC_AUDIO_MUTE_STATUS_MASK : 0;
 
     cec_command audioStatusReport;
     cec_command::Format(audioStatusReport, CECDEVICE_AUDIOSYSTEM, requestingDeviceAddress,

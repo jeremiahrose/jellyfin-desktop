@@ -154,8 +154,12 @@
 
                     this.loading.hide();
 
-                    const volume = this.getSavedVolume() * 100;
-                    this.setVolume(volume, false);
+                    if (window.api.defaultAudioOutputVolume) {
+                        window.api.player.setVolume(100);
+                    } else {
+                        const volume = this.getSavedVolume() * 100;
+                        this.setVolume(volume, false);
+                    }
 
                     this.setPlaybackRate(this.getPlaybackRate());
 
@@ -777,6 +781,10 @@
     }
 
     setVolume(val, save = true) {
+        if (window.api.defaultAudioOutputVolume) {
+            window.api.defaultAudioOutputVolume.setVolumePercent(Math.round(Number(val)));
+            return;
+        }
         val = Number(val);
         if (!isNaN(val)) {
             this._volume = val;
@@ -789,18 +797,33 @@
     }
 
     getVolume() {
+        if (window.api.defaultAudioOutputVolume) {
+            return window.api.defaultAudioOutputVolume.volumePercent;
+        }
         return this._volume;
     }
 
     volumeUp() {
+        if (window.api.defaultAudioOutputVolume) {
+            window.api.defaultAudioOutputVolume.raiseVolumeByOneStep();
+            return;
+        }
         this.setVolume(Math.min(this.getVolume() + 2, 100));
     }
 
     volumeDown() {
+        if (window.api.defaultAudioOutputVolume) {
+            window.api.defaultAudioOutputVolume.lowerVolumeByOneStep();
+            return;
+        }
         this.setVolume(Math.max(this.getVolume() - 2, 0));
     }
 
     setMute(mute, triggerEvent = true) {
+        if (window.api.defaultAudioOutputVolume) {
+            window.api.defaultAudioOutputVolume.setMuted(mute);
+            return;
+        }
         this._muted = mute;
         window.api.player.setMuted(mute);
         if (triggerEvent) {
@@ -809,6 +832,9 @@
     }
 
     isMuted() {
+        if (window.api.defaultAudioOutputVolume) {
+            return window.api.defaultAudioOutputVolume.muted;
+        }
         return this._muted;
     }
 

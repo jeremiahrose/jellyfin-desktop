@@ -1,6 +1,7 @@
 #include "DefaultAudioOutputVolume.h"
 
 #include <QString>
+#include <algorithm>
 #include <cmath>
 
 #include "utils/Utils.h"
@@ -22,11 +23,14 @@ private:
   pa_threaded_mainloop* m_pulseAudioThread;
 };
 
-DefaultAudioOutputVolume::DefaultAudioOutputVolume()
+DefaultAudioOutputVolume::DefaultAudioOutputVolume(
+std::function<void()> announceDefaultAudioOutputChanged)
+  : m_announceDefaultAudioOutputChanged(std::move(announceDefaultAudioOutputChanged))
 {
   try
   {
     connectToPulseAudio();
+    subscribeToAudioOutputChanges();
   }
   catch (FatalException&)
   {
@@ -39,6 +43,7 @@ DefaultAudioOutputVolume::~DefaultAudioOutputVolume() { disconnectFromPulseAudio
 
 void DefaultAudioOutputVolume::raiseVolumeByOneStep()
 {
+  std::lock_guard<std::mutex> volumeOperationLock(m_oneVolumeOperationAtATime);
   PulseAudioThreadLock pulseAudioThreadLock(m_pulseAudioThread);
   pa_cvolume channelVolumes = readDefaultAudioOutputState().channelVolumes;
   pa_cvolume_inc_clamp(&channelVolumes, ONE_VOLUME_STEP, PA_VOLUME_NORM);
@@ -47,25 +52,42 @@ void DefaultAudioOutputVolume::raiseVolumeByOneStep()
 
 void DefaultAudioOutputVolume::lowerVolumeByOneStep()
 {
+  std::lock_guard<std::mutex> volumeOperationLock(m_oneVolumeOperationAtATime);
   PulseAudioThreadLock pulseAudioThreadLock(m_pulseAudioThread);
   pa_cvolume channelVolumes = readDefaultAudioOutputState().channelVolumes;
   pa_cvolume_dec(&channelVolumes, ONE_VOLUME_STEP);
   setDefaultAudioOutputChannelVolumes(channelVolumes);
 }
 
+void DefaultAudioOutputVolume::setVolumePercent(int volumePercent)
+{
+  std::lock_guard<std::mutex> volumeOperationLock(m_oneVolumeOperationAtATime);
+  PulseAudioThreadLock pulseAudioThreadLock(m_pulseAudioThread);
+  pa_cvolume channelVolumes = readDefaultAudioOutputState().channelVolumes;
+  int volumePercentWithinRange = std::clamp(volumePercent, 0, 100);
+  auto requestedVolume = static_cast<pa_volume_t>(
+  std::lround(static_cast<double>(PA_VOLUME_NORM) * volumePercentWithinRange / 100.0));
+  pa_cvolume_set(&channelVolumes, channelVolumes.channels, requestedVolume);
+  setDefaultAudioOutputChannelVolumes(channelVolumes);
+}
+
 void DefaultAudioOutputVolume::toggleMute()
 {
+  std::lock_guard<std::mutex> volumeOperationLock(m_oneVolumeOperationAtATime);
   PulseAudioThreadLock pulseAudioThreadLock(m_pulseAudioThread);
-  bool shouldMute = !readDefaultAudioOutputState().isMuted;
-  m_lastOperationSucceeded = false;
-  waitForPulseAudioOperation(pa_context_set_sink_mute_by_name(m_pulseAudioConnection,
-                                                              DEFAULT_AUDIO_OUTPUT_NAME, shouldMute,
-                                                              storeOperationSuccess, this),
-                             "mute the default audio output");
+  setDefaultAudioOutputMuted(!readDefaultAudioOutputState().isMuted);
+}
+
+void DefaultAudioOutputVolume::setMuted(bool shouldMute)
+{
+  std::lock_guard<std::mutex> volumeOperationLock(m_oneVolumeOperationAtATime);
+  PulseAudioThreadLock pulseAudioThreadLock(m_pulseAudioThread);
+  setDefaultAudioOutputMuted(shouldMute);
 }
 
 int DefaultAudioOutputVolume::volumePercent()
 {
+  std::lock_guard<std::mutex> volumeOperationLock(m_oneVolumeOperationAtATime);
   PulseAudioThreadLock pulseAudioThreadLock(m_pulseAudioThread);
   pa_cvolume channelVolumes = readDefaultAudioOutputState().channelVolumes;
   pa_volume_t loudestChannelVolume = pa_cvolume_max(&channelVolumes);
@@ -74,6 +96,7 @@ int DefaultAudioOutputVolume::volumePercent()
 
 bool DefaultAudioOutputVolume::isMuted()
 {
+  std::lock_guard<std::mutex> volumeOperationLock(m_oneVolumeOperationAtATime);
   PulseAudioThreadLock pulseAudioThreadLock(m_pulseAudioThread);
   return readDefaultAudioOutputState().isMuted;
 }
@@ -142,6 +165,28 @@ void DefaultAudioOutputVolume::setDefaultAudioOutputChannelVolumes(const pa_cvol
   "set the default audio output volume");
 }
 
+void DefaultAudioOutputVolume::setDefaultAudioOutputMuted(bool shouldMute)
+{
+  m_lastOperationSucceeded = false;
+  waitForPulseAudioOperation(pa_context_set_sink_mute_by_name(m_pulseAudioConnection,
+                                                              DEFAULT_AUDIO_OUTPUT_NAME, shouldMute,
+                                                              storeOperationSuccess, this),
+                             "mute or unmute the default audio output");
+}
+
+void DefaultAudioOutputVolume::subscribeToAudioOutputChanges()
+{
+  PulseAudioThreadLock pulseAudioThreadLock(m_pulseAudioThread);
+  pa_context_set_subscribe_callback(m_pulseAudioConnection, announceAudioOutputChange, this);
+  auto audioOutputAndDefaultOutputChanges =
+  static_cast<pa_subscription_mask_t>(PA_SUBSCRIPTION_MASK_SINK | PA_SUBSCRIPTION_MASK_SERVER);
+  m_lastOperationSucceeded = false;
+  waitForPulseAudioOperation(pa_context_subscribe(m_pulseAudioConnection,
+                                                  audioOutputAndDefaultOutputChanges,
+                                                  storeOperationSuccess, this),
+                             "subscribe to audio output volume changes");
+}
+
 void DefaultAudioOutputVolume::waitForPulseAudioOperation(pa_operation* pulseAudioOperation,
                                                           const char* operationDescription)
 {
@@ -189,4 +234,13 @@ void DefaultAudioOutputVolume::storeOperationSuccess(pa_context* pulseAudioConne
   auto* volume = static_cast<DefaultAudioOutputVolume*>(defaultAudioOutputVolume);
   volume->m_lastOperationSucceeded = operationSucceeded;
   pa_threaded_mainloop_signal(volume->m_pulseAudioThread, 0);
+}
+
+void DefaultAudioOutputVolume::announceAudioOutputChange(pa_context* pulseAudioConnection,
+                                                         pa_subscription_event_type_t changeType,
+                                                         uint32_t changedAudioOutputIndex,
+                                                         void* defaultAudioOutputVolume)
+{
+  static_cast<DefaultAudioOutputVolume*>(defaultAudioOutputVolume)
+  ->m_announceDefaultAudioOutputChanged();
 }

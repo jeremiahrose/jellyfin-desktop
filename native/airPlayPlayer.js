@@ -26,6 +26,7 @@ class airPlayPlayer {
 
     followAirPlayStreams(api) {
         this._airPlayReceiver = api.airplay;
+        this._defaultAudioOutputVolume = api.defaultAudioOutputVolume;
         api.airplay.airPlayStreamStarted.connect(() => this.startShowingAirPlayStream());
         api.airplay.airPlayTrackChanged.connect((title, artist, album) => {
             this.inOrderWithOtherServerUpdates(() => this.showNewAirPlayTrack({ Title: title, Artist: artist, Album: album }));
@@ -199,8 +200,8 @@ class airPlayPlayer {
                 IsPaused: this._isPaused,
                 PositionTicks: this.currentTime() * TICKS_PER_MILLISECOND,
                 CanSeek: false,
-                IsMuted: false,
-                VolumeLevel: 100,
+                IsMuted: this.isMuted(),
+                VolumeLevel: this.getVolume(),
                 RepeatMode: 'RepeatNone',
                 ShuffleMode: 'Sorted',
                 PlayMethod: 'DirectPlay',
@@ -288,23 +289,27 @@ class airPlayPlayer {
     }
 
     getVolume() {
-        return 100;
+        return this._defaultAudioOutputVolume.volumePercent;
     }
 
-    setVolume() {
+    setVolume(volumePercent) {
+        this._defaultAudioOutputVolume.setVolumePercent(Math.round(Number(volumePercent)));
     }
 
     volumeUp() {
+        this._defaultAudioOutputVolume.raiseVolumeByOneStep();
     }
 
     volumeDown() {
+        this._defaultAudioOutputVolume.lowerVolumeByOneStep();
     }
 
     isMuted() {
-        return false;
+        return this._defaultAudioOutputVolume.muted;
     }
 
-    setMute() {
+    setMute(mute) {
+        this._defaultAudioOutputVolume.setMuted(mute);
     }
 
     getPlaybackRate() {

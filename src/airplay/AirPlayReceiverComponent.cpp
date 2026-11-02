@@ -5,13 +5,17 @@
 #include <QHostInfo>
 #include <QMimeDatabase>
 #include <QNetworkInterface>
+#include <cmath>
 
 #include "AirPlayAudioOutput.h"
 #include "AirPlayTrackMetadata.h"
+#include "audio/DefaultAudioOutputVolumeComponent.h"
 #include "player/PlayerComponent.h"
 #include "utils/Utils.h"
 
 static const int MAXIMUM_SIMULTANEOUS_AIRPLAY_SENDERS = 1;
+static const float AIRPLAY_MUTED_VOLUME_DECIBELS = -144.0f;
+static const float AIRPLAY_QUIETEST_VOLUME_DECIBELS = -30.0f;
 
 static void* openAudioOutputForNewAirPlayStream(void* receiverComponent, int bitsPerSample,
                                                 int channelCount, int sampleRateHz)
@@ -53,12 +57,24 @@ static void discardBufferedAirPlayAudio(void* receiverComponent, void* airPlayAu
   static_cast<AirPlayReceiverComponent*>(receiverComponent)->announceAirPlayAudioStoppedFlowing();
 }
 
-static void setAirPlayVolume(void* receiverComponent, void* airPlayAudioOutput,
-                             float airPlayVolumeDecibels)
+static void setDefaultAudioOutputVolumeFromAirPlaySender(void* receiverComponent,
+                                                        void* airPlayAudioOutput,
+                                                        float airPlayVolumeDecibels)
 {
-  if (airPlayAudioOutput)
-    static_cast<AirPlayAudioOutput*>(airPlayAudioOutput)
-    ->setVolumeFromAirPlayDecibels(airPlayVolumeDecibels);
+  DefaultAudioOutputVolumeComponent& defaultAudioOutputVolume =
+  DefaultAudioOutputVolumeComponent::Get();
+  bool senderIsMuted = airPlayVolumeDecibels <= AIRPLAY_MUTED_VOLUME_DECIBELS;
+  if (senderIsMuted)
+  {
+    defaultAudioOutputVolume.setMuted(true);
+    return;
+  }
+
+  float senderVolumeSliderFraction =
+  (airPlayVolumeDecibels - AIRPLAY_QUIETEST_VOLUME_DECIBELS) / -AIRPLAY_QUIETEST_VOLUME_DECIBELS;
+  defaultAudioOutputVolume.setMuted(false);
+  defaultAudioOutputVolume.setVolumePercent(
+  static_cast<int>(std::lround(senderVolumeSliderFraction * 100.0f)));
 }
 
 static void receiveAirPlayTrackMetadata(void* receiverComponent, void* airPlayAudioOutput,
@@ -107,6 +123,12 @@ AirPlayReceiverComponent::~AirPlayReceiverComponent()
 
 bool AirPlayReceiverComponent::componentInitialize()
 {
+  if (!DefaultAudioOutputVolumeComponent::Get().controlsDefaultAudioOutput())
+  {
+    qCritical() << "AirPlay needs control of the default audio output volume";
+    return false;
+  }
+
   try
   {
     m_receiverHardwareAddress = firstNetworkInterfaceHardwareAddress();
@@ -225,7 +247,7 @@ void AirPlayReceiverComponent::createAirPlayAudioServer()
   m_airPlayAudioServerCallbacks.audio_init = openAudioOutputForNewAirPlayStream;
   m_airPlayAudioServerCallbacks.audio_process = playAirPlayAudio;
   m_airPlayAudioServerCallbacks.audio_flush = discardBufferedAirPlayAudio;
-  m_airPlayAudioServerCallbacks.audio_set_volume = setAirPlayVolume;
+  m_airPlayAudioServerCallbacks.audio_set_volume = setDefaultAudioOutputVolumeFromAirPlaySender;
   m_airPlayAudioServerCallbacks.audio_destroy = closeAudioOutputForEndedAirPlayStream;
   m_airPlayAudioServerCallbacks.audio_set_metadata = receiveAirPlayTrackMetadata;
   m_airPlayAudioServerCallbacks.audio_set_coverart = receiveAirPlayCoverArt;

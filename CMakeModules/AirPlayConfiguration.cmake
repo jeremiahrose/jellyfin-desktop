@@ -1,5 +1,8 @@
 option(ENABLE_AIRPLAY "Receive AirPlay audio with libshairplay" OFF)
 if(ENABLE_AIRPLAY)
+  if(NOT ENABLE_DEFAULT_AUDIO_OUTPUT_VOLUME)
+    message(FATAL_ERROR "ENABLE_AIRPLAY requires ENABLE_DEFAULT_AUDIO_OUTPUT_VOLUME")
+  endif()
   find_package(PkgConfig REQUIRED)
   find_path(SHAIRPLAY_INCLUDE_DIR shairplay/raop.h REQUIRED)
   find_library(SHAIRPLAY_LIBRARY shairplay REQUIRED)

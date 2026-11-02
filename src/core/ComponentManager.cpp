@@ -16,6 +16,9 @@
 #ifdef LINUX_DBUS
 #include "mpris/MprisComponent.h"
 #endif
+#ifdef HAVE_DEFAULT_AUDIO_OUTPUT_VOLUME
+#include "audio/DefaultAudioOutputVolumeComponent.h"
+#endif
 #ifdef HAVE_AIRPLAY
 #include "airplay/AirPlayReceiverComponent.h"
 #endif
@@ -59,6 +62,9 @@ void ComponentManager::initialize()
   // might have some settings
   //
   registerComponent(&SettingsComponent::Get());
+#ifdef HAVE_DEFAULT_AUDIO_OUTPUT_VOLUME
+  registerComponent(&DefaultAudioOutputVolumeComponent::Get());
+#endif
   registerComponent(&InputComponent::Get());
   registerComponent(&SystemComponent::Get());
   registerComponent(&DisplayComponent::Get());

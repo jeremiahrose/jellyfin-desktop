@@ -26,6 +26,10 @@ if(LINUX_DBUS)
   add_subdirectory(mpris)
 endif()
 
+if(ENABLE_DEFAULT_AUDIO_OUTPUT_VOLUME)
+  add_subdirectory(audio)
+endif()
+
 if(ENABLE_AIRPLAY)
   add_subdirectory(airplay)
 endif()

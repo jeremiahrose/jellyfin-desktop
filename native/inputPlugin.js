@@ -117,6 +117,15 @@ class inputPlugin {
                     console.log('SystemMedia: Cannot attach playbackRateChanged listener - api:', !!window.api, 'player:', !!window.api?.player);
                 }
 
+                if (window.api && window.api.defaultAudioOutputVolume) {
+                    window.api.defaultAudioOutputVolume.volumeChanged.connect(function() {
+                        const currentPlayer = playbackManager._currentPlayer;
+                        if (window.Events && currentPlayer) {
+                            window.Events.trigger(currentPlayer, 'volumechange');
+                        }
+                    });
+                }
+
                 if (window.api && window.api.input) {
                     window.api.input.volumeChanged.connect(function(volume) {
                         const currentPlayer = playbackManager._currentPlayer;

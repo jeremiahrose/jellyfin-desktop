@@ -5,10 +5,9 @@
 #include <QTimer>
 #include "input/InputComponent.h"
 #include <libcec/cec.h>
-#include <memory>
 
 #ifdef HAVE_CEC_AUDIO_SYSTEM
-#include "input/DefaultAudioOutputVolume.h"
+#include "audio/DefaultAudioOutputVolumeComponent.h"
 #endif
 
 using namespace CEC;
@@ -76,10 +75,6 @@ private:
   QString m_adapterPort;
   QTimer* m_timer;
   bool m_verboseLogging;
-
-#ifdef HAVE_CEC_AUDIO_SYSTEM
-  std::unique_ptr<DefaultAudioOutputVolume> m_defaultAudioOutputVolume;
-#endif
 };
 
 #endif // INPUTCEC_H
