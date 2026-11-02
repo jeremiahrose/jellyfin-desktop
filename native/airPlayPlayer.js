@@ -37,7 +37,8 @@ class airPlayPlayer {
         api.airplay.airPlayAudioStartedFlowing.connect(() => this.showAirPlayPlaying());
         api.airplay.airPlayAudioStoppedFlowing.connect(() => this.showAirPlayPaused());
         api.airplay.airPlayStreamEnded.connect(() => {
-            this.inOrderWithOtherServerUpdates(() => this.stopShowingAirPlayStream());
+            this.stopShowingAirPlayStream();
+            this.inOrderWithOtherServerUpdates(() => this.removeAirPlayTrackFromServer());
         });
     }
 
@@ -84,6 +85,9 @@ class airPlayPlayer {
             dataType: 'json'
         });
         const trackItem = await apiClient.getItem(apiClient.getCurrentUserId(), airPlayTrackItem.ItemId);
+        if (!this._isStreaming) {
+            return;
+        }
 
         if (this._nowPlayingItem) {
             this.events.trigger(this, 'itemstopped', [this.stopInfoForNowPlayingItem('Audio')]);
@@ -158,7 +162,7 @@ class airPlayPlayer {
         this.events.trigger(this, 'pause');
     }
 
-    async stopShowingAirPlayStream() {
+    stopShowingAirPlayStream() {
         if (!this._isStreaming) {
             return;
         }
@@ -172,7 +176,9 @@ class airPlayPlayer {
             this._nowPlayingItem = null;
             this.events.trigger(this, 'itemstopped', [stopInfo]);
         }
+    }
 
+    async removeAirPlayTrackFromServer() {
         const apiClient = this.apiClient();
         await apiClient.ajax({ type: 'DELETE', url: apiClient.getUrl('AirPlay/NowPlaying') });
     }
@@ -254,6 +260,7 @@ class airPlayPlayer {
 
     stop() {
         if (this._isStreaming) {
+            this.stopShowingAirPlayStream();
             this._airPlayReceiver.disconnectAirPlaySenders();
         }
         return Promise.resolve();
