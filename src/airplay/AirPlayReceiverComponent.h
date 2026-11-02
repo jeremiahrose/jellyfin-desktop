@@ -29,14 +29,16 @@ public:
   void announceAirPlayProgress(unsigned int trackStartRtpTimestamp,
                                unsigned int currentRtpTimestamp, unsigned int trackEndRtpTimestamp);
   void announceAirPlayCoverArt(const QByteArray& coverArtImage);
-  void announceAirPlayAudioDiscarded();
+  void announceAirPlayAudioArrived();
+  void announceAirPlayAudioStoppedFlowing();
 
 Q_SIGNALS:
   void airPlayStreamStarted();
   void airPlayTrackChanged(const QString& title, const QString& artist, const QString& album);
   void airPlayCoverArtChanged(const QString& coverArtMimeType, const QString& coverArtBase64);
   void airPlayProgressChanged(double positionSeconds, double durationSeconds);
-  void airPlayAudioDiscarded();
+  void airPlayAudioStartedFlowing();
+  void airPlayAudioStoppedFlowing();
   void airPlayStreamEnded();
 
 public Q_SLOTS:
@@ -51,6 +53,7 @@ private:
   QByteArray m_receiverHardwareAddress;
   std::atomic<int> m_activeAirPlayStreamCount = 0;
   std::atomic<int> m_airPlaySampleRateHz = 44100;
+  std::atomic<bool> m_airPlayAudioIsFlowing = false;
   raop_callbacks_t m_airPlayAudioServerCallbacks = {};
   raop_t* m_airPlayAudioServer = nullptr;
   unsigned short m_airPlayAudioPort = 5000;

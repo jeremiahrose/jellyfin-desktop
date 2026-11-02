@@ -1,6 +1,6 @@
 (function() {
 const TICKS_PER_MILLISECOND = 10000;
-const PLACEHOLDER_TRACK_DETAILS = { Title: 'AirPlay', Artist: '', Album: '' };
+const TRACK_DETAILS_BEFORE_SENDER_DESCRIBES_TRACK = { Title: '', Artist: '', Album: '' };
 
 class airPlayPlayer {
     constructor({ events, playbackManager, ServerConnections }) {
@@ -34,7 +34,8 @@ class airPlayPlayer {
             this.inOrderWithOtherServerUpdates(() => this.uploadCoverArt(coverArtMimeType, coverArtBase64));
         });
         api.airplay.airPlayProgressChanged.connect((positionSeconds, durationSeconds) => this.showAirPlayProgress(positionSeconds, durationSeconds));
-        api.airplay.airPlayAudioDiscarded.connect(() => this.showAirPlayPaused());
+        api.airplay.airPlayAudioStartedFlowing.connect(() => this.showAirPlayPlaying());
+        api.airplay.airPlayAudioStoppedFlowing.connect(() => this.showAirPlayPaused());
         api.airplay.airPlayStreamEnded.connect(() => {
             this.inOrderWithOtherServerUpdates(() => this.stopShowingAirPlayStream());
         });
@@ -52,13 +53,13 @@ class airPlayPlayer {
 
     startShowingAirPlayStream() {
         this._isStreaming = true;
-        this._isPaused = false;
+        this._isPaused = true;
         this._positionMsAtLastProgressUpdate = 0;
         this._lastProgressUpdateTimeMs = Date.now();
         this._timeUpdateInterval = setInterval(() => this.events.trigger(this, 'timeupdate'), 1000);
         this.inOrderWithOtherServerUpdates(async () => {
             await this.stopOtherPlayback();
-            await this.showNewAirPlayTrack(PLACEHOLDER_TRACK_DETAILS);
+            await this.showNewAirPlayTrack(TRACK_DETAILS_BEFORE_SENDER_DESCRIBES_TRACK);
         });
     }
 
@@ -129,10 +130,6 @@ class airPlayPlayer {
 
         this._positionMsAtLastProgressUpdate = positionSeconds * 1000;
         this._lastProgressUpdateTimeMs = Date.now();
-        if (this._isPaused) {
-            this._isPaused = false;
-            this.events.trigger(this, 'unpause');
-        }
 
         const durationTicks = Math.round(durationSeconds * 1000 * TICKS_PER_MILLISECOND);
         const durationHasChanged = this._nowPlayingItem && this._nowPlayingItem.RunTimeTicks !== durationTicks;
@@ -141,6 +138,15 @@ class airPlayPlayer {
             this.inOrderWithOtherServerUpdates(() => this.uploadDuration(durationSeconds));
         }
         this.events.trigger(this, 'statechange', [this.getPlayerState()]);
+    }
+
+    showAirPlayPlaying() {
+        if (!this._isStreaming || !this._isPaused) {
+            return;
+        }
+        this._lastProgressUpdateTimeMs = Date.now();
+        this._isPaused = false;
+        this.events.trigger(this, 'unpause');
     }
 
     showAirPlayPaused() {

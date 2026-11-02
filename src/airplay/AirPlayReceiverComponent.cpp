@@ -43,13 +43,14 @@ static void playAirPlayAudio(void* receiverComponent, void* airPlayAudioOutput,
   if (airPlayAudioOutput)
     static_cast<AirPlayAudioOutput*>(airPlayAudioOutput)
     ->playSigned16BitPcmSamples(pcmSamples, pcmSamplesLengthBytes);
+  static_cast<AirPlayReceiverComponent*>(receiverComponent)->announceAirPlayAudioArrived();
 }
 
 static void discardBufferedAirPlayAudio(void* receiverComponent, void* airPlayAudioOutput)
 {
   if (airPlayAudioOutput)
     static_cast<AirPlayAudioOutput*>(airPlayAudioOutput)->discardBufferedAudio();
-  static_cast<AirPlayReceiverComponent*>(receiverComponent)->announceAirPlayAudioDiscarded();
+  static_cast<AirPlayReceiverComponent*>(receiverComponent)->announceAirPlayAudioStoppedFlowing();
 }
 
 static void setAirPlayVolume(void* receiverComponent, void* airPlayAudioOutput,
@@ -135,6 +136,7 @@ void AirPlayReceiverComponent::countAirPlayStreamStarted(int sampleRateHz)
 {
   m_activeAirPlayStreamCount++;
   m_airPlaySampleRateHz = sampleRateHz;
+  m_airPlayAudioIsFlowing = false;
   QMetaObject::invokeMethod(this, [this] { emit airPlayStreamStarted(); }, Qt::QueuedConnection);
 }
 
@@ -180,9 +182,24 @@ void AirPlayReceiverComponent::announceAirPlayProgress(unsigned int trackStartRt
   { emit airPlayProgressChanged(positionSeconds, durationSeconds); }, Qt::QueuedConnection);
 }
 
-void AirPlayReceiverComponent::announceAirPlayAudioDiscarded()
+void AirPlayReceiverComponent::announceAirPlayAudioArrived()
 {
-  QMetaObject::invokeMethod(this, [this] { emit airPlayAudioDiscarded(); }, Qt::QueuedConnection);
+  bool airPlayAudioWasAlreadyFlowing = m_airPlayAudioIsFlowing.exchange(true);
+  if (airPlayAudioWasAlreadyFlowing)
+    return;
+
+  QMetaObject::invokeMethod(this, [this] { emit airPlayAudioStartedFlowing(); },
+                            Qt::QueuedConnection);
+}
+
+void AirPlayReceiverComponent::announceAirPlayAudioStoppedFlowing()
+{
+  bool airPlayAudioWasFlowing = m_airPlayAudioIsFlowing.exchange(false);
+  if (!airPlayAudioWasFlowing)
+    return;
+
+  QMetaObject::invokeMethod(this, [this] { emit airPlayAudioStoppedFlowing(); },
+                            Qt::QueuedConnection);
 }
 
 void AirPlayReceiverComponent::disconnectAirPlaySenders()
