@@ -173,8 +173,8 @@ class airPlayPlayer {
         this._timeUpdateInterval = null;
 
         if (this._nowPlayingItem) {
-            this._nowPlayingItem = null;
             this.events.trigger(this, 'itemstopped', [stopInfo]);
+            this._nowPlayingItem = null;
         }
     }
 
@@ -260,8 +260,8 @@ class airPlayPlayer {
 
     stop() {
         if (this._isStreaming) {
-            this.stopShowingAirPlayStream();
             this._airPlayReceiver.disconnectAirPlaySenders();
+            this.stopShowingAirPlayStream();
         }
         return Promise.resolve();
     }
@@ -292,6 +292,12 @@ class airPlayPlayer {
     }
 
     setVolume() {
+    }
+
+    volumeUp() {
+    }
+
+    volumeDown() {
     }
 
     isMuted() {
