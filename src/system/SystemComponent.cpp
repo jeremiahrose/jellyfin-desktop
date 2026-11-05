@@ -598,6 +598,7 @@ QString SystemComponent::getNativeShellScript()
     ":/web-client/extension/mpvAudioPlayer.js",
     ":/web-client/extension/inputPlugin.js",
     ":/web-client/extension/updatePlugin.js",
+    ":/web-client/extension/serverReconnectPlugin.js",
     ":/web-client/extension/connectivityHelper.js",
     ":/web-client/extension/nativeshell.js"
   };

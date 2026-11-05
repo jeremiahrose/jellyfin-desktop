@@ -19,7 +19,8 @@ const features = [
 const getPlugins = () => {
     const basePlugins = [
         'inputPlugin',
-        'updatePlugin'
+        'updatePlugin',
+        'serverReconnectPlugin'
     ];
 
     if (window._airPlayPlayer) {
