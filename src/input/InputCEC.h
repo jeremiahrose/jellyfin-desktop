@@ -6,6 +6,10 @@
 #include "input/InputComponent.h"
 #include <libcec/cec.h>
 
+#ifdef HAVE_CEC_AUDIO_SYSTEM
+#include "audio/DefaultAudioOutputVolumeComponent.h"
+#endif
+
 using namespace CEC;
 
 #define CEC_LONGPRESS_DURATION 1000  // duration after keypress is considerered as long
@@ -53,6 +57,12 @@ private:
   QString getCommandString(cec_user_control_code code);
   void sendReceivedInput(const QString& source, const QString& keycode, InputBase::InputkeyState keyState);
   QString getCommandParamsList(const cec_command *command);
+
+#ifdef HAVE_CEC_AUDIO_SYSTEM
+  static bool isVolumeKey(uint8_t userControlCode);
+  void changeDefaultAudioOutputVolumeForKey(uint8_t volumeKeyUserControlCode);
+  void reportAudioStatusToDevice(cec_logical_address requestingDeviceAddress);
+#endif
 
   // libcec callbacks
   static void CecLogMessage(void* cbParam, const cec_log_message *message);

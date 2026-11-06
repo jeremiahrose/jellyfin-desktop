@@ -16,6 +16,12 @@
 #ifdef LINUX_DBUS
 #include "mpris/MprisComponent.h"
 #endif
+#ifdef HAVE_DEFAULT_AUDIO_OUTPUT_VOLUME
+#include "audio/DefaultAudioOutputVolumeComponent.h"
+#endif
+#ifdef HAVE_AIRPLAY
+#include "airplay/AirPlayReceiverComponent.h"
+#endif
 
 #ifdef KONVERGO_OPENELEC
 #include "system/openelec/OESystemComponent.h"
@@ -56,6 +62,9 @@ void ComponentManager::initialize()
   // might have some settings
   //
   registerComponent(&SettingsComponent::Get());
+#ifdef HAVE_DEFAULT_AUDIO_OUTPUT_VOLUME
+  registerComponent(&DefaultAudioOutputVolumeComponent::Get());
+#endif
   registerComponent(&InputComponent::Get());
   registerComponent(&SystemComponent::Get());
   registerComponent(&DisplayComponent::Get());
@@ -65,6 +74,9 @@ void ComponentManager::initialize()
   registerComponent(&WindowManager::Get());
 #ifdef LINUX_DBUS
   registerComponent(&MprisComponent::Get());
+#endif
+#ifdef HAVE_AIRPLAY
+  registerComponent(&AirPlayReceiverComponent::Get());
 #endif
 
 #ifdef KONVERGO_OPENELEC

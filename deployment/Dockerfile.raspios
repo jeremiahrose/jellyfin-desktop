@@ -1,0 +1,24 @@
+FROM dtcooper/raspberrypi-os:bookworm
+
+ARG SOURCE_DIR=/jellyfin
+ARG ARTIFACT_DIR=/dist
+
+ENV SOURCE_DIR=/jellyfin
+ENV ARTIFACT_DIR=/dist
+ENV DEB_BUILD_OPTIONS=noddebs
+ENV IS_DOCKER=YES
+ENV IMG=raspios
+
+RUN apt-get update \
+ && apt-get dist-upgrade -y \
+ && DEBIAN_FRONTEND="noninteractive" TZ="America/New_York" \
+    apt-get install --no-install-recommends -y \
+    debhelper mmv git curl devscripts equivs
+
+RUN ln -sf ${SOURCE_DIR}/deployment/build.debian /build.sh
+
+VOLUME ${SOURCE_DIR}
+
+VOLUME ${ARTIFACT_DIR}
+
+ENTRYPOINT ["/build.sh"]

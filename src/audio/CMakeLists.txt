@@ -1,0 +1,2 @@
+add_sources(DefaultAudioOutputVolume.cpp DefaultAudioOutputVolume.h)
+add_sources(DefaultAudioOutputVolumeComponent.cpp DefaultAudioOutputVolumeComponent.h)
