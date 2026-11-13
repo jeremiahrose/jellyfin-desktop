@@ -121,7 +121,7 @@ class mpvAudioPlayer {
 
                 return fade(self, null, self._volume).then(function () {
                     self.pause();
-                    self.setVolume(originalVolume, false);
+                    window.api.player.setVolume(originalVolume);
 
                     self.onEndedInternal();
                     self.destroy();
@@ -166,8 +166,13 @@ class mpvAudioPlayer {
             if (!self._started) {
                 self._started = true;
 
-                const volume = self.getSavedVolume() * 100;
-                self.setVolume(volume, volume != self._volume);
+                if (window.api.defaultAudioOutputVolume) {
+                    self._volume = 100;
+                    window.api.player.setVolume(100);
+                } else {
+                    const volume = self.getSavedVolume() * 100;
+                    self.setVolume(volume, volume != self._volume);
+                }
             }
 
             self.setPlaybackRate(self.getPlaybackRate());
@@ -315,6 +320,10 @@ class mpvAudioPlayer {
     }
 
     setVolume(val, save = true) {
+        if (window.api.defaultAudioOutputVolume) {
+            window.api.defaultAudioOutputVolume.setVolumePercent(Math.round(val));
+            return;
+        }
         this._volume = val;
         if (save) {
             this.saveVolume((val || 100) / 100);
@@ -324,18 +333,33 @@ class mpvAudioPlayer {
     }
 
     getVolume() {
+        if (window.api.defaultAudioOutputVolume) {
+            return window.api.defaultAudioOutputVolume.volumePercent;
+        }
         return this._volume;
     }
 
     volumeUp() {
+        if (window.api.defaultAudioOutputVolume) {
+            window.api.defaultAudioOutputVolume.raiseVolumeByOneStep();
+            return;
+        }
         this.setVolume(Math.min(this.getVolume() + 2, 100));
     }
 
     volumeDown() {
+        if (window.api.defaultAudioOutputVolume) {
+            window.api.defaultAudioOutputVolume.lowerVolumeByOneStep();
+            return;
+        }
         this.setVolume(Math.max(this.getVolume() - 2, 0));
     }
 
     setMute(mute, triggerEvent = true) {
+        if (window.api.defaultAudioOutputVolume) {
+            window.api.defaultAudioOutputVolume.setMuted(mute);
+            return;
+        }
         this._muted = mute;
         window.api.player.setMuted(mute);
         if (triggerEvent) {
@@ -344,6 +368,9 @@ class mpvAudioPlayer {
     }
 
     isMuted() {
+        if (window.api.defaultAudioOutputVolume) {
+            return window.api.defaultAudioOutputVolume.muted;
+        }
         return this._muted;
     }
 

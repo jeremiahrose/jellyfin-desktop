@@ -19,8 +19,13 @@ const features = [
 const getPlugins = () => {
     const basePlugins = [
         'inputPlugin',
-        'updatePlugin'
+        'updatePlugin',
+        'serverReconnectPlugin'
     ];
+
+    if (window._airPlayPlayer) {
+        basePlugins.push('airPlayPlayer');
+    }
 
     const mpvEnabled = jmpInfo.settings?.main?.enableMPV !== false;
     if (mpvEnabled) {

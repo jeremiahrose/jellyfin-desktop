@@ -52,6 +52,17 @@ if(ENABLE_CEC)
 
 endif(ENABLE_CEC)
 
+OPTION(ENABLE_CEC_AUDIO_SYSTEM "Act as the CEC audio system and control the default audio output volume" OFF)
+if(ENABLE_CEC_AUDIO_SYSTEM)
+  if(NOT CEC_FOUND)
+    message(FATAL_ERROR "ENABLE_CEC_AUDIO_SYSTEM requires libCEC")
+  endif()
+  if(NOT ENABLE_DEFAULT_AUDIO_OUTPUT_VOLUME)
+    message(FATAL_ERROR "ENABLE_CEC_AUDIO_SYSTEM requires ENABLE_DEFAULT_AUDIO_OUTPUT_VOLUME")
+  endif()
+  add_definitions(-DHAVE_CEC_AUDIO_SYSTEM)
+endif(ENABLE_CEC_AUDIO_SYSTEM)
+
 if(UNIX AND NOT APPLE)
   OPTION(ENABLE_LIRC "Enable LIRC for Linux IR handling" ON)
   if(ENABLE_LIRC)
